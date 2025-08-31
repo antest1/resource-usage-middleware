@@ -1,13 +1,17 @@
 # resource-usage-middleware
 
 FastAPI middleware to measure per-request elapsed time, peak CPU (RSS) memory usage,
-and peak GPU memory usage (per NVIDIA device) during the lifecycle of the request.
+peak CPU utilization (%) for the current process, and peak GPU memory usage
+for the current process only (per NVIDIA device).
 
-## Features
+Features
 - Adds response headers:
     - X-Elapsed-Time-ms
     - X-Max-RSS-MB
+    - X-Max-CPU-Percent
     - X-GPU-Mem-Per-Device-MB (JSON: {device_index: peak_used_mb}) when NVML available
+    - X-Max-RSS (human-readable, e.g. '1.23 GB')
+    - X-GPU-Mem-Per-Device (human-readable JSON per device)
 - Optionally logs the same metrics via standard logging.
 - Lightweight async sampler with configurable polling interval.
 
@@ -41,3 +45,5 @@ async def ping():
 - GPU metrics require NVIDIA drivers + NVML. If `pynvml` or NVML aren’t available, GPU metrics are skipped gracefully.
 - Peak CPU memory is sampled from process RSS; very short-lived spikes between sampling intervals may be missed. Lower the
   `poll_interval_s` for finer resolution (at the cost of more sampling overhead).
+- CPU utilization (%): psutil reports process % relative to a single CPU, so values can exceed 100 on multi-core systems
+  (up to 100 * num_logical_cpus).
