@@ -266,10 +266,28 @@ class ResourceUsageMiddleware(BaseHTTPMiddleware):
         peak_rss_human = _format_bytes(peak_rss)
         gpu_peak_human = {k: _format_bytes(int(v_mb * 1024 ** 2)) for k, v_mb in gpu_peak_mb.items()}
 
+        # CPU cores info
+        num_logical_cores = psutil.cpu_count(logical=True) or 0
+        num_physical_cores = psutil.cpu_count(logical=False) or 0
+
+        # System memory info
+        sys_mem_total_bytes = int(psutil.virtual_memory().total)
+        sys_mem_total_mb = sys_mem_total_bytes / (1024 ** 2)
+        sys_mem_total_human = _format_bytes(sys_mem_total_bytes)
+
         if self.add_headers:
             response.headers[f"{self.header_prefix}Elapsed-Time-ms"] = f"{elapsed_ms:.2f}"
             response.headers[f"{self.header_prefix}Max-RSS-MB"] = f"{peak_rss_mb:.2f}"
             response.headers[f"{self.header_prefix}Max-CPU-Percent"] = f"{peak_cpu_pct:.2f}"
+
+            # CPU info
+            response.headers[f"{self.header_prefix}CPU-Cores-Logical"] = str(num_logical_cores)
+            response.headers[f"{self.header_prefix}CPU-Cores-Physical"] = str(num_physical_cores)
+
+            # System memory info
+            response.headers[f"{self.header_prefix}System-Mem-Total-MB"] = f"{sys_mem_total_mb:.2f}"
+            response.headers[f"{self.header_prefix}System-Mem-Total"] = sys_mem_total_human
+
             if gpu_peak_mb:
                 response.headers[f"{self.header_prefix}GPU-Mem-Per-Device-MB"] = json.dumps(
                     {str(k): round(v, 2) for k, v in gpu_peak_mb.items()}
@@ -289,6 +307,13 @@ class ResourceUsageMiddleware(BaseHTTPMiddleware):
                 "elapsed_ms": round(elapsed_ms, 2),
                 "peak_rss_mb": round(peak_rss_mb, 2),
                 "peak_cpu_percent": round(peak_cpu_pct, 2),
+
+                "cpu_cores_logical": num_logical_cores,
+                "cpu_cores_physical": num_physical_cores,
+
+                "system_mem_total_mb": round(sys_mem_total_mb, 2),
+                "system_mem_total_human": sys_mem_total_human,
+
                 "gpu_peak_mb": {k: round(v, 2) for k, v in gpu_peak_mb.items()} if gpu_peak_mb else {},
                 "peak_rss_human": peak_rss_human,
                 "gpu_peak_human": {k: v for k, v in gpu_peak_human.items()} if gpu_peak_human else {},
